@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'self';">
+    <script>
+        if (localStorage.getItem("cuidarplus_tema") === "escuro") {
+            document.documentElement.setAttribute("data-tema", "escuro");
+        }
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cuidar+ ajuda cuidadores a organizar a rotina de cuidados de idosos: medicamentos, alimentação, consultas e horários, tudo em um só lugar.">
+    <meta name="theme-color" content="#2F6F62">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <link rel="apple-touch-icon" href="favicon-180.png">
+
+    <title>Cuidar+</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <svg style="display:none" aria-hidden="true">
+        <symbol id="icone-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+        <symbol id="icone-comprimido" viewBox="0 0 24 24"><g transform="rotate(45 12 12)"><rect x="4" y="9" width="16" height="6" rx="3"/><line x1="12" y1="9" x2="12" y2="15"/></g></symbol>
+        <symbol id="icone-prato" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></symbol>
+        <symbol id="icone-calendario" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></symbol>
+        <symbol id="icone-pessoas" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15 20c0-2.5 1-4 3-4.5"/></symbol>
+        <symbol id="icone-pessoa" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></symbol>
+        <symbol id="icone-lapis" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></symbol>
+        <symbol id="icone-lixeira" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+        <symbol id="icone-check" viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"/></symbol>
+        <symbol id="icone-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4"/></symbol>
+        <symbol id="icone-lua" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></symbol>
+        <symbol id="icone-imprimir" viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1"/><path d="M6 17v4h12v-4"/></symbol>
+    </svg>
+
+    <div id="splash" class="splash">
+        <img src="logo-slogan.png" alt="Cuidar+" class="splash-logo">
+        <div class="splash-progresso">
+            <div class="splash-progresso-preenchida"></div>
+        </div>
+    </div>
+
+    <main class="app">
+
+        <!-- ===================== PRIMEIRO ACESSO ===================== -->
+
+        <section id="boasVindas" class="tela escondida">
+
+            <img src="logo-completa.png" alt="Cuidar+ — cuidado que conecta, carinho que acompanha" class="logo-boas-vindas">
+
+            <header>
+                <h1>Bem-vindo(a)!</h1>
+                <p>Vamos criar seu perfil de cuidador(a)</p>
+            </header>
+
+            <form onsubmit="salvarCuidadorInicial(event)">
+
+                <label for="nomeCuidadorInicial">Seu nome</label>
+                <input type="text" id="nomeCuidadorInicial" placeholder="Ex: Maria" required>
+
+                <label for="telefoneCuidadorInicial">Seu telefone</label>
+                <input type="tel" id="telefoneCuidadorInicial" placeholder="Ex: (93) 99999-9999" required>
+
+                <button type="submit" class="adicionar">Começar</button>
+
+            </form>
+
+            <p class="aviso-privacidade">Seus dados ficam salvos apenas neste dispositivo.</p>
+
+        </section>
+
+
+        <!-- ===================== DASHBOARD ===================== -->
+
+        <section id="dashboard" class="tela escondida">
+
+            <div class="dashboard-topo">
+                <img src="logo-completa.png" alt="Cuidar+" class="logo-cabecalho">
+                <div class="controles-topo">
+                    <button class="botao-controle" onclick="diminuirFonte()" aria-label="Diminuir tamanho do texto" title="Diminuir texto">A−</button>
+                    <button class="botao-controle" onclick="aumentarFonte()" aria-label="Aumentar tamanho do texto" title="Aumentar texto">A+</button>
+                    <button class="botao-controle" onclick="alternarTema()" aria-label="Alternar tema claro ou escuro" title="Alternar tema">
+                        <svg class="icone" id="iconeTema"><use href="#icone-lua"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="saudacao">
+                <p class="saudacao-titulo" id="saudacaoTitulo">Olá</p>
+                <p class="saudacao-data" id="saudacaoData"></p>
+            </div>
+
+            <div class="resumo-dashboard">
+                <div class="stat-card">
+                    <span class="stat-numero" id="statIdosos">0</span>
+                    <span class="stat-rotulo">idosos</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-numero" id="statConcluidas">0/0</span>
+                    <span class="stat-rotulo">concluído hoje</span>
+                </div>
+            </div>
+
+            <div class="barra-progresso">
+                <div class="barra-progresso-preenchida" id="barraProgresso"></div>
+            </div>
+
+            <div class="lista-cabecalho">
+                <h2 class="secao-titulo">Sua rotina de hoje</h2>
+                <label class="filtro-ocultar">
+                    <input type="checkbox" id="ocultarConcluidas" onchange="alternarOcultarConcluidas()">
+                    Ocultar concluídas
+                </label>
+            </div>
+            <div id="listaRotinaHoje"></div>
+
+            <button class="link-imprimir" onclick="window.print()">
+                <svg class="icone"><use href="#icone-imprimir"/></svg> Imprimir rotina de hoje
+            </button>
+
+            <section class="menu">
+
+                <button class="menu-item menu-idosos" onclick="mostrarTela('meusIdosos')">
+                    <span class="menu-icone"><svg class="icone"><use href="#icone-pessoas"/></svg></span>
+                    <span class="menu-texto">
+                        <strong>Meus idosos</strong>
+                        <small>Gerenciar quem você cuida</small>
+                    </span>
+                </button>
+
+                <button class="menu-item menu-perfil" onclick="abrirPerfilCuidador()">
+                    <span class="menu-icone"><svg class="icone"><use href="#icone-pessoa"/></svg></span>
+                    <span class="menu-texto">
+                        <strong>Meu perfil</strong>
+                        <small>Seus dados</small>
+                    </span>
+                </button>
+
+            </section>
+
+        </section>
+
+
+        <!-- ===================== MEUS IDOSOS ===================== -->
+
+        <section id="meusIdosos" class="tela escondida">
+
+            <button class="voltar" onclick="mostrarTela('dashboard')">← Voltar</button>
+
+            <header>
+                <h1>Meus idosos</h1>
+                <p>Pessoas sob seus cuidados</p>
+            </header>
+
+            <input type="text" id="buscaIdosos" class="busca escondida" placeholder="Buscar por nome..." aria-label="Buscar idoso por nome" oninput="renderizarIdosos()">
+
+            <div id="listaIdosos"></div>
+
+            <button class="adicionar" onclick="abrirFormularioIdoso()">+ Adicionar idoso</button>
+
+        </section>
+
+
+        <section id="formularioIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="sairFormulario(voltarDoFormularioIdoso)">← Voltar</button>
+
+            <header>
+                <h1 id="tituloFormularioIdoso">Adicionar idoso</h1>
+                <p>Preencha as informações</p>
+            </header>
+
+            <form onsubmit="salvarIdoso(event)">
+
+                <label for="nomeIdoso">Nome</label>
+                <input type="text" id="nomeIdoso" placeholder="Ex: Dona Ana" required>
+
+                <label for="dataNascimentoIdoso">Data de nascimento</label>
+                <input type="date" id="dataNascimentoIdoso" required>
+
+                <label for="generoIdoso">Gênero (opcional)</label>
+                <select id="generoIdoso">
+                    <option value="">Prefiro não informar</option>
+                    <option value="Feminino">Feminino</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Outro">Outro</option>
+                </select>
+
+                <label for="cpfIdoso">CPF (opcional)</label>
+                <input type="text" id="cpfIdoso" placeholder="Ex: 000.000.000-00">
+
+                <label for="telefoneIdoso">Telefone (opcional)</label>
+                <input type="tel" id="telefoneIdoso" placeholder="Ex: (93) 99999-9999">
+
+                <h2 class="form-secao">Endereço (opcional)</h2>
+
+                <label for="enderecoIdoso">Rua</label>
+                <input type="text" id="enderecoIdoso">
+
+                <label for="numeroIdoso">Número</label>
+                <input type="text" id="numeroIdoso">
+
+                <label for="bairroIdoso">Bairro</label>
+                <input type="text" id="bairroIdoso">
+
+                <label for="cidadeIdoso">Cidade</label>
+                <input type="text" id="cidadeIdoso">
+
+                <label for="estadoIdoso">Estado</label>
+                <input type="text" id="estadoIdoso">
+
+                <label for="cepIdoso">CEP</label>
+                <input type="text" id="cepIdoso">
+
+                <h2 class="form-secao">Informações médicas (opcional)</h2>
+
+                <label for="mobilidadeIdoso">Mobilidade</label>
+                <select id="mobilidadeIdoso">
+                    <option value="">Não informado</option>
+                    <option value="Independente">Independente</option>
+                    <option value="Necessita de auxílio">Necessita de auxílio</option>
+                    <option value="Dependente">Dependente</option>
+                </select>
+
+                <label>Doenças crônicas</label>
+                <div class="lista-chips" id="listaDoencasCronicas"></div>
+                <input type="hidden" id="doencasCronicasIdoso" value="[]">
+                <div class="adicionar-item">
+                    <input type="text" id="novaDoencaCronica" placeholder="Ex: Hipertensão" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarChip('doencasCronicasIdoso','listaDoencasCronicas','novaDoencaCronica');}">
+                    <button type="button" onclick="adicionarChip('doencasCronicasIdoso','listaDoencasCronicas','novaDoencaCronica')">+</button>
+                </div>
+
+                <label>Diagnósticos importantes</label>
+                <div class="lista-chips" id="listaDiagnosticos"></div>
+                <input type="hidden" id="diagnosticosIdoso" value="[]">
+                <div class="adicionar-item">
+                    <input type="text" id="novoDiagnostico" placeholder="Ex: Alzheimer inicial" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarChip('diagnosticosIdoso','listaDiagnosticos','novoDiagnostico');}">
+                    <button type="button" onclick="adicionarChip('diagnosticosIdoso','listaDiagnosticos','novoDiagnostico')">+</button>
+                </div>
+
+                <label>Alergias</label>
+                <div class="lista-chips" id="listaAlergias"></div>
+                <input type="hidden" id="alergiasIdoso" value="[]">
+                <div class="adicionar-item">
+                    <input type="text" id="novaAlergia" placeholder="Ex: Dipirona" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarChip('alergiasIdoso','listaAlergias','novaAlergia');}">
+                    <button type="button" onclick="adicionarChip('alergiasIdoso','listaAlergias','novaAlergia')">+</button>
+                </div>
+
+                <h2 class="form-secao">Preferências e hábitos (opcional)</h2>
+
+                <label for="comidaFavoritaIdoso">Comida favorita</label>
+                <input type="text" id="comidaFavoritaIdoso">
+
+                <label for="musicaFavoritaIdoso">Música favorita</label>
+                <input type="text" id="musicaFavoritaIdoso">
+
+                <label for="religiaoIdoso">Religião</label>
+                <input type="text" id="religiaoIdoso">
+
+                <label for="hobbiesIdoso">Hobbies</label>
+                <input type="text" id="hobbiesIdoso">
+
+                <h2 class="form-secao">Contato de emergência (opcional)</h2>
+
+                <label for="emergenciaNomeIdoso">Nome</label>
+                <input type="text" id="emergenciaNomeIdoso">
+
+                <label for="emergenciaTelefoneIdoso">Telefone</label>
+                <input type="tel" id="emergenciaTelefoneIdoso">
+
+                <label for="emergenciaParentescoIdoso">Parentesco</label>
+                <input type="text" id="emergenciaParentescoIdoso" placeholder="Ex: Filho, Neto">
+
+                <label for="notaIdoso">Outras observações (opcional)</label>
+                <textarea id="notaIdoso" placeholder="Ex: qualquer outra informação importante..."></textarea>
+
+                <button type="submit" class="adicionar">Salvar idoso</button>
+
+            </form>
+
+        </section>
+
+
+        <!-- ===================== PERFIL DO IDOSO ===================== -->
+
+        <section id="perfilIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="mostrarTela('meusIdosos')">← Voltar</button>
+
+            <div class="perfil-cabecalho">
+                <span class="idoso-avatar idoso-avatar-grande" id="perfilIdosoAvatar" aria-hidden="true"></span>
+                <div>
+                    <h1 id="perfilIdosoNome">Nome</h1>
+                    <p id="perfilIdosoIdade"></p>
+                </div>
+            </div>
+
+            <p class="nota-idoso escondida" id="perfilIdosoNota"></p>
+
+            <div id="infoExtraIdoso"></div>
+
+            <section class="menu">
+
+                <button class="menu-item menu-rotina" onclick="abrirRotina()">
+                    <span class="menu-icone"><svg class="icone"><use href="#icone-relogio"/></svg></span>
+                    <span class="menu-texto">
+                        <strong>Rotina</strong>
+                        <small id="resumoRotina">Dias e horários de cuidado</small>
+                    </span>
+                </button>
+
+                <button class="menu-item menu-medicamentos" onclick="abrirMedicamentosIdoso()">
+                    <span class="menu-icone"><svg class="icone"><use href="#icone-comprimido"/></svg></span>
+                    <span class="menu-texto">
+                        <strong>Medicamentos</strong>
+                        <small id="resumoMedicamentos">Remédios e horários</small>
+                    </span>
+                </button>
+
+                <button class="menu-item menu-alimentacao" onclick="abrirAlimentacao()">
+                    <span class="menu-icone"><svg class="icone"><use href="#icone-prato"/></svg></span>
+                    <span class="menu-texto">
+                        <strong>Alimentação</strong>
+                        <small id="resumoAlimentacao">Horários das refeições</small>
+                    </span>
+                </button>
+
+                <button class="menu-item menu-consultas" onclick="abrirConsultasIdoso()">
+                    <span class="menu-icone"><svg class="icone"><use href="#icone-calendario"/></svg></span>
+                    <span class="menu-texto">
+                        <strong>Consultas</strong>
+                        <small id="resumoConsultas">Compromissos médicos</small>
+                    </span>
+                </button>
+
+            </section>
+
+            <div class="acoes-idoso">
+                <button class="secundario" onclick="abrirFormularioIdoso(idosoAtualId)"><svg class="icone"><use href="#icone-lapis"/></svg> Editar dados</button>
+                <button class="excluir" onclick="confirmarExclusaoIdoso()"><svg class="icone"><use href="#icone-lixeira"/></svg> Excluir idoso</button>
+            </div>
+
+        </section>
+
+
+        <!-- ===================== ROTINA ===================== -->
+
+        <section id="rotinaIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="voltarParaPerfilIdoso()">← Voltar</button>
+
+            <header>
+                <h1><svg class="icone"><use href="#icone-relogio"/></svg> Rotina</h1>
+                <p id="rotinaSubtitulo">Dias e horários de cuidado</p>
+            </header>
+
+            <div id="listaRotina"></div>
+
+            <button class="adicionar" onclick="abrirFormularioRotina()">+ Adicionar horário</button>
+
+        </section>
+
+
+        <section id="formularioRotina" class="tela escondida">
+
+            <button class="voltar" onclick="sairFormulario(function(){mostrarTela('rotinaIdoso')})">← Voltar</button>
+
+            <header>
+                <h1 id="tituloFormularioRotina">Adicionar rotina</h1>
+                <p>Dias e horário de cuidado</p>
+            </header>
+
+            <form onsubmit="salvarRotina(event)">
+
+                <label>Dias da semana</label>
+                <div class="dias-semana" id="diasRotina">
+                    <label class="dia-check dia-check-todos">
+                        <input type="checkbox" id="diasRotinaTodos" onchange="alternarTodosDias('diasRotina')">Todos os dias
+                    </label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="seg" onchange="sincronizarTodos('diasRotina')">Seg</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="ter" onchange="sincronizarTodos('diasRotina')">Ter</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="qua" onchange="sincronizarTodos('diasRotina')">Qua</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="qui" onchange="sincronizarTodos('diasRotina')">Qui</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="sex" onchange="sincronizarTodos('diasRotina')">Sex</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="sab" onchange="sincronizarTodos('diasRotina')">Sáb</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="dom" onchange="sincronizarTodos('diasRotina')">Dom</label>
+                </div>
+
+                <label for="inicioRotina">Início</label>
+                <input type="time" id="inicioRotina" required>
+
+                <label for="fimRotina">Término</label>
+                <input type="time" id="fimRotina" required>
+
+                <button type="submit" class="adicionar">Salvar rotina</button>
+
+            </form>
+
+        </section>
+
+
+        <!-- ===================== MEDICAMENTOS ===================== -->
+
+        <section id="medicamentosIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="voltarParaPerfilIdoso()">← Voltar</button>
+
+            <header>
+                <h1><svg class="icone"><use href="#icone-comprimido"/></svg> Medicamentos</h1>
+                <p id="medicamentosSubtitulo">Remédios e horários</p>
+            </header>
+
+            <div id="listaMedicamentosIdoso"></div>
+
+            <button class="adicionar" onclick="abrirFormularioMedicamento()">+ Adicionar medicamento</button>
+
+        </section>
+
+
+        <section id="formularioMedicamentoIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="sairFormulario(function(){mostrarTela('medicamentosIdoso')})">← Voltar</button>
+
+            <header>
+                <h1 id="tituloFormularioMedicamento">Adicionar medicamento</h1>
+                <p>Preencha as informações</p>
+            </header>
+
+            <form onsubmit="salvarMedicamentoIdoso(event)">
+
+                <label for="nomeMedicamentoIdoso">Nome do medicamento</label>
+                <input type="text" id="nomeMedicamentoIdoso" placeholder="Ex: Losartana" required>
+
+                <label for="dosagemMedicamentoIdoso">Dosagem</label>
+                <input type="text" id="dosagemMedicamentoIdoso" placeholder="Ex: 50 mg" required>
+
+                <label for="viaAdministracaoMedicamento">Via de administração (opcional)</label>
+                <select id="viaAdministracaoMedicamento">
+                    <option value="">Não informado</option>
+                    <option value="Oral">Oral</option>
+                    <option value="Injetável">Injetável</option>
+                    <option value="Tópica">Tópica</option>
+                    <option value="Inalação">Inalação</option>
+                    <option value="Sublingual">Sublingual</option>
+                    <option value="Outra">Outra</option>
+                </select>
+
+                <label>Horários</label>
+                <div class="lista-chips" id="listaHorariosMedicamento"></div>
+                <input type="hidden" id="horariosMedicamentoIdoso" value="[]">
+                <div class="adicionar-item">
+                    <input type="time" id="novoHorarioMedicamento" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarChip('horariosMedicamentoIdoso','listaHorariosMedicamento','novoHorarioMedicamento');}">
+                    <button type="button" onclick="adicionarChip('horariosMedicamentoIdoso','listaHorariosMedicamento','novoHorarioMedicamento')">+</button>
+                </div>
+
+                <label for="observacaoMedicamento">Observações (opcional)</label>
+                <textarea id="observacaoMedicamento" placeholder="Ex: tomar com alimento"></textarea>
+
+                <label>Dias da semana</label>
+                <div class="dias-semana" id="diasMedicamento">
+                    <label class="dia-check dia-check-todos">
+                        <input type="checkbox" id="diasMedicamentoTodos" onchange="alternarTodosDias('diasMedicamento')">Todos os dias
+                    </label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="seg" onchange="sincronizarTodos('diasMedicamento')">Seg</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="ter" onchange="sincronizarTodos('diasMedicamento')">Ter</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="qua" onchange="sincronizarTodos('diasMedicamento')">Qua</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="qui" onchange="sincronizarTodos('diasMedicamento')">Qui</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="sex" onchange="sincronizarTodos('diasMedicamento')">Sex</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="sab" onchange="sincronizarTodos('diasMedicamento')">Sáb</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="dom" onchange="sincronizarTodos('diasMedicamento')">Dom</label>
+                </div>
+
+                <button type="submit" class="adicionar">Salvar medicamento</button>
+
+            </form>
+
+        </section>
+
+
+        <!-- ===================== ALIMENTAÇÃO ===================== -->
+
+        <section id="alimentacaoIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="voltarParaPerfilIdoso()">← Voltar</button>
+
+            <header>
+                <h1><svg class="icone"><use href="#icone-prato"/></svg> Alimentação</h1>
+                <p id="alimentacaoSubtitulo">Horários das refeições</p>
+            </header>
+
+            <div id="listaAlimentacao"></div>
+
+            <button class="adicionar" onclick="abrirFormularioAlimentacao()">+ Adicionar horário</button>
+
+        </section>
+
+
+        <section id="formularioAlimentacao" class="tela escondida">
+
+            <button class="voltar" onclick="sairFormulario(function(){mostrarTela('alimentacaoIdoso')})">← Voltar</button>
+
+            <header>
+                <h1 id="tituloFormularioAlimentacao">Adicionar alimentação</h1>
+                <p>Preencha as informações</p>
+            </header>
+
+            <form onsubmit="salvarAlimentacao(event)">
+
+                <label for="tipoAlimentacao">Tipo de refeição</label>
+                <select id="tipoAlimentacao" required>
+                    <option value="Café da manhã">Café da manhã</option>
+                    <option value="Lanche">Lanche</option>
+                    <option value="Almoço">Almoço</option>
+                    <option value="Café da tarde">Café da tarde</option>
+                    <option value="Jantar">Jantar</option>
+                    <option value="Ceia">Ceia</option>
+                </select>
+
+                <label for="horarioAlimentacao">Horário</label>
+                <input type="time" id="horarioAlimentacao" required>
+
+                <label>Dias da semana</label>
+                <div class="dias-semana" id="diasAlimentacao">
+                    <label class="dia-check dia-check-todos">
+                        <input type="checkbox" id="diasAlimentacaoTodos" onchange="alternarTodosDias('diasAlimentacao')">Todos os dias
+                    </label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="seg" onchange="sincronizarTodos('diasAlimentacao')">Seg</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="ter" onchange="sincronizarTodos('diasAlimentacao')">Ter</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="qua" onchange="sincronizarTodos('diasAlimentacao')">Qua</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="qui" onchange="sincronizarTodos('diasAlimentacao')">Qui</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="sex" onchange="sincronizarTodos('diasAlimentacao')">Sex</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="sab" onchange="sincronizarTodos('diasAlimentacao')">Sáb</label>
+                    <label class="dia-check"><input type="checkbox" data-dia value="dom" onchange="sincronizarTodos('diasAlimentacao')">Dom</label>
+                </div>
+
+                <button type="submit" class="adicionar">Salvar alimentação</button>
+
+            </form>
+
+        </section>
+
+
+        <!-- ===================== CONSULTAS ===================== -->
+
+        <section id="consultasIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="voltarParaPerfilIdoso()">← Voltar</button>
+
+            <header>
+                <h1><svg class="icone"><use href="#icone-calendario"/></svg> Consultas</h1>
+                <p id="consultasSubtitulo">Compromissos médicos</p>
+            </header>
+
+            <label class="filtro-ocultar">
+                <input type="checkbox" id="verConsultasConcluidas" onchange="renderizarConsultasIdoso()">
+                Ver concluídas
+            </label>
+
+            <div id="listaConsultasIdoso"></div>
+
+            <button class="adicionar" onclick="abrirFormularioConsulta()">+ Adicionar consulta</button>
+
+        </section>
+
+
+        <section id="formularioConsultaIdoso" class="tela escondida">
+
+            <button class="voltar" onclick="sairFormulario(function(){mostrarTela('consultasIdoso')})">← Voltar</button>
+
+            <header>
+                <h1 id="tituloFormularioConsulta">Adicionar consulta</h1>
+                <p>Preencha as informações</p>
+            </header>
+
+            <form onsubmit="salvarConsultaIdoso(event)">
+
+                <label>Tipo de consulta</label>
+                <div class="dias-semana">
+                    <label class="dia-check">
+                        <input type="radio" name="tipoConsulta" value="unica" checked onchange="alternarTipoConsulta()"> Única (com data)
+                    </label>
+                    <label class="dia-check">
+                        <input type="radio" name="tipoConsulta" value="recorrente" onchange="alternarTipoConsulta()"> Recorrente (dias da semana)
+                    </label>
+                </div>
+
+                <label for="especialidadeConsultaIdoso">Especialidade (opcional)</label>
+                <input type="text" id="especialidadeConsultaIdoso" placeholder="Ex: Fisioterapia">
+
+                <div id="camposConsultaUnica">
+                    <label for="dataConsultaIdoso">Data</label>
+                    <input type="date" id="dataConsultaIdoso">
+                </div>
+
+                <div id="camposConsultaRecorrente" class="escondida">
+                    <label>Dias da semana</label>
+                    <div class="dias-semana" id="diasConsulta">
+                        <label class="dia-check dia-check-todos">
+                            <input type="checkbox" id="diasConsultaTodos" onchange="alternarTodosDias('diasConsulta')">Todos os dias
+                        </label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="seg" onchange="sincronizarTodos('diasConsulta')">Seg</label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="ter" onchange="sincronizarTodos('diasConsulta')">Ter</label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="qua" onchange="sincronizarTodos('diasConsulta')">Qua</label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="qui" onchange="sincronizarTodos('diasConsulta')">Qui</label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="sex" onchange="sincronizarTodos('diasConsulta')">Sex</label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="sab" onchange="sincronizarTodos('diasConsulta')">Sáb</label>
+                        <label class="dia-check"><input type="checkbox" data-dia value="dom" onchange="sincronizarTodos('diasConsulta')">Dom</label>
+                    </div>
+                </div>
+
+                <label for="horarioConsultaIdoso">Horário</label>
+                <input type="time" id="horarioConsultaIdoso" required>
+
+                <label for="profissionalConsultaIdoso">Médico/profissional (opcional)</label>
+                <input type="text" id="profissionalConsultaIdoso" placeholder="Ex: Dr. Carlos">
+
+                <label for="localConsultaIdoso">Local (opcional)</label>
+                <input type="text" id="localConsultaIdoso" placeholder="Ex: Clínica São Lucas">
+
+                <button type="submit" class="adicionar">Salvar consulta</button>
+
+            </form>
+
+        </section>
+
+
+        <!-- ===================== PERFIL DO CUIDADOR ===================== -->
+
+        <section id="perfilCuidador" class="tela escondida">
+
+            <button class="voltar" onclick="mostrarTela('dashboard')">← Voltar</button>
+
+            <header>
+                <h1>Meu perfil</h1>
+                <p>Suas informações</p>
+            </header>
+
+            <div class="perfil">
+                <h2><svg class="icone"><use href="#icone-pessoa"/></svg> Cuidador(a)</h2>
+                <p>Nome: <span id="cuidadorNome"></span></p>
+                <p>Telefone: <span id="cuidadorTelefone"></span></p>
+            </div>
+
+            <button class="adicionar" onclick="abrirEdicaoCuidador()"><svg class="icone"><use href="#icone-lapis"/></svg> Editar perfil</button>
+
+        </section>
+
+
+        <section id="formularioCuidador" class="tela escondida">
+
+            <button class="voltar" onclick="sairFormulario(function(){mostrarTela('perfilCuidador')})">← Voltar</button>
+
+            <header>
+                <h1>Editar perfil</h1>
+                <p>Atualize suas informações</p>
+            </header>
+
+            <form onsubmit="salvarCuidador(event)">
+
+                <label for="nomeCuidador">Nome</label>
+                <input type="text" id="nomeCuidador" required>
+
+                <label for="telefoneCuidador">Telefone</label>
+                <input type="tel" id="telefoneCuidador" required>
+
+                <button type="submit" class="adicionar">Salvar</button>
+
+            </form>
+
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
