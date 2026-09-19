@@ -197,8 +197,9 @@ function calcularIdade(dataNascimento) {
 function renderizarChips(inputId, containerId) {
     const valores = JSON.parse(document.getElementById(inputId).value || "[]");
     const container = document.getElementById(containerId);
+    const classeChip = containerId === "listaAlergias" ? "chip chip-perigo" : "chip";
     container.innerHTML = valores.map(function (v, i) {
-        return "<span class='chip'>" + escaparHtml(v) + "<button type='button' onclick=\"removerChip('" + inputId + "','" + containerId + "'," + i + ")\">×</button></span>";
+        return "<span class='" + classeChip + "'>" + escaparHtml(v) + "<button type='button' onclick=\"removerChip('" + inputId + "','" + containerId + "'," + i + ")\">×</button></span>";
     }).join("");
 }
 
@@ -267,8 +268,412 @@ function diminuirFonte() {
     aplicarFonte(nivel);
 }
 
+function restaurarFonte() {
+    localStorage.setItem("cuidarplus_nivel_fonte", 0);
+    aplicarFonte(0);
+}
+
 function nivelFonteAtual() {
     return parseInt(document.documentElement.getAttribute("data-nivel-fonte") || "0", 10);
+}
+
+function abrirMenuLateral() {
+    document.getElementById("menuLateral").classList.remove("escondida");
+    document.getElementById("overlayMenu").classList.remove("escondida");
+    document.getElementById("dashboard").querySelector(".botao-hamburguer").setAttribute("aria-expanded", "true");
+}
+
+function fecharMenuLateral() {
+    document.getElementById("menuLateral").classList.add("escondida");
+    document.getElementById("overlayMenu").classList.add("escondida");
+    document.getElementById("dashboard").querySelector(".botao-hamburguer").setAttribute("aria-expanded", "false");
+}
+
+function alternarMenuLateral() {
+    if (document.getElementById("menuLateral").classList.contains("escondida")) {
+        abrirMenuLateral();
+    } else {
+        fecharMenuLateral();
+    }
+}
+
+function abrirSobre() {
+    fecharMenuLateral();
+    document.getElementById("modalSobre").classList.remove("escondida");
+    document.getElementById("overlaySobre").classList.remove("escondida");
+}
+
+function abrirComoUsar() {
+    fecharMenuLateral();
+    mostrarTela("comoUsar");
+}
+
+
+// =====================================================
+// RELATÓRIO EM PDF
+// =====================================================
+
+const MAPA_DIA_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
+const NOMES_DIAS_COMPLETOS = { dom: "Domingo", seg: "Segunda", ter: "Terça", qua: "Quarta", qui: "Quinta", sex: "Sexta", sab: "Sábado" };
+
+const CORES_RELATORIO = {
+    primaria: [47, 111, 98],
+    rotina: [53, 97, 140],
+    alimentacao: [191, 107, 61],
+    consulta: [185, 121, 31],
+    texto: [31, 42, 36],
+    textoSuave: [91, 107, 98],
+    borda: [225, 233, 226],
+    linhaAlternada: [245, 246, 245]
+};
+
+function abrirModalRelatorio() {
+    const select = document.getElementById("relatorioIdoso");
+    select.innerHTML = "<option value='todos'>Todos os idosos</option>";
+    idosos.forEach(function (idoso) {
+        const opcao = document.createElement("option");
+        opcao.value = idoso.id;
+        opcao.textContent = idoso.nome;
+        select.appendChild(opcao);
+    });
+
+    document.getElementById("modalRelatorio").classList.remove("escondida");
+    document.getElementById("overlayRelatorio").classList.remove("escondida");
+}
+
+function fecharModalRelatorio() {
+    document.getElementById("modalRelatorio").classList.add("escondida");
+    document.getElementById("overlayRelatorio").classList.add("escondida");
+}
+
+function confirmarGerarRelatorio(event) {
+    if (event) event.preventDefault();
+
+    const periodo = document.querySelector("input[name='periodoRelatorio']:checked").value;
+    const idosoSelecionado = document.getElementById("relatorioIdoso").value;
+
+    gerarRelatorioPDF(periodo, idosoSelecionado);
+    fecharModalRelatorio();
+}
+
+function paraISO(dataObj) {
+    const ano = dataObj.getFullYear();
+    const mes = String(dataObj.getMonth() + 1).padStart(2, "0");
+    const dia = String(dataObj.getDate()).padStart(2, "0");
+    return ano + "-" + mes + "-" + dia;
+}
+
+function paraDataArquivo(dataObj) {
+    const dia = String(dataObj.getDate()).padStart(2, "0");
+    const mes = String(dataObj.getMonth() + 1).padStart(2, "0");
+    return dia + "-" + mes + "-" + dataObj.getFullYear();
+}
+
+function sanitizarNomeArquivo(texto) {
+    return texto
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+function obterIntervaloRelatorio(periodo) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    if (periodo === "diario") {
+        return [hoje];
+    }
+
+    if (periodo === "semanal") {
+        const diaSemana = hoje.getDay();
+        const deltaSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
+        const segunda = new Date(hoje);
+        segunda.setDate(hoje.getDate() + deltaSegunda);
+
+        const datas = [];
+        for (let i = 0; i < 7; i++) {
+            const dataItem = new Date(segunda);
+            dataItem.setDate(segunda.getDate() + i);
+            datas.push(dataItem);
+        }
+        return datas;
+    }
+
+    const ano = hoje.getFullYear();
+    const mes = hoje.getMonth();
+    const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+    const datas = [];
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+        datas.push(new Date(ano, mes, dia));
+    }
+    return datas;
+}
+
+function formatarObsConsultaRelatorio(consulta) {
+    let obs = consulta.especialidade || "Consulta";
+    if (consulta.profissional) obs += " — " + consulta.profissional;
+    if (consulta.local) obs += " • " + consulta.local;
+    return obs;
+}
+
+function obterAtividadesParaData(dataObj, idoso) {
+    const diaAbrev = MAPA_DIA_SEMANA[dataObj.getDay()];
+    const dataISO = paraISO(dataObj);
+    const itens = [];
+
+    (idoso.rotina || []).forEach(function (r) {
+        if (r.dias.includes(diaAbrev)) {
+            itens.push({ horario: r.inicio, atividade: "Início do período de cuidado", observacao: "" });
+        }
+    });
+
+    (idoso.medicamentos || []).forEach(function (m) {
+        if (m.dias.includes(diaAbrev)) {
+            horariosDoMedicamento(m).forEach(function (h) {
+                let obs = m.nome + (m.dosagem ? " — " + m.dosagem : "");
+                if (m.observacao) obs += " (" + m.observacao + ")";
+                itens.push({ horario: h, atividade: "Medicamento", observacao: obs });
+            });
+        }
+    });
+
+    (idoso.alimentacao || []).forEach(function (a) {
+        if (a.dias.includes(diaAbrev)) {
+            itens.push({ horario: a.horario, atividade: "Alimentação", observacao: a.tipo });
+        }
+    });
+
+    (idoso.consultas || []).forEach(function (c) {
+        if (c.tipo === "recorrente") {
+            if (c.dias.includes(diaAbrev)) {
+                itens.push({ horario: c.horario, atividade: "Consulta", observacao: formatarObsConsultaRelatorio(c) });
+            }
+        } else if (c.data === dataISO) {
+            itens.push({ horario: c.horario, atividade: "Consulta", observacao: formatarObsConsultaRelatorio(c) });
+        }
+    });
+
+    itens.sort(function (a, b) { return a.horario.localeCompare(b.horario); });
+    return itens;
+}
+
+function corPorAtividadeRelatorio(atividade) {
+    if (atividade === "Medicamento") return CORES_RELATORIO.primaria;
+    if (atividade === "Alimentação") return CORES_RELATORIO.alimentacao;
+    if (atividade === "Consulta") return CORES_RELATORIO.consulta;
+    return CORES_RELATORIO.rotina;
+}
+
+function gerarRelatorioPDF(periodo, idosoIdOuTodos) {
+    const jsPDFClasse = window.jspdf.jsPDF;
+    const doc = new jsPDFClasse({ unit: "mm", format: "a4" });
+
+    const margem = 15;
+    const larguraPagina = doc.internal.pageSize.getWidth();
+    const alturaPagina = doc.internal.pageSize.getHeight();
+    const larguraUtil = larguraPagina - margem * 2;
+    let y = margem;
+
+    const idososRelatorio = idosoIdOuTodos === "todos"
+        ? idosos.slice()
+        : [encontrarIdoso(idosoIdOuTodos)].filter(function (item) { return !!item; });
+
+    const datas = obterIntervaloRelatorio(periodo);
+
+    const rotuloPeriodo = { diario: "Rotina diária", semanal: "Rotina semanal", mensal: "Rotina mensal" }[periodo];
+    const rotuloIntervalo = periodo === "diario"
+        ? formatarData(paraISO(datas[0]))
+        : formatarData(paraISO(datas[0])) + " a " + formatarData(paraISO(datas[datas.length - 1]));
+    const rotuloIdoso = idosoIdOuTodos === "todos" ? "Todos os idosos" : (idososRelatorio[0] ? idososRelatorio[0].nome : "");
+
+    function garantirEspaco(altura) {
+        if (y + altura > alturaPagina - margem) {
+            doc.addPage();
+            y = margem;
+            return true;
+        }
+        return false;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor.apply(doc, CORES_RELATORIO.primaria);
+    doc.text("CUIDAR+ — RELATÓRIO DE ROTINA", margem, y);
+    y += 8;
+
+    doc.setDrawColor.apply(doc, CORES_RELATORIO.primaria);
+    doc.setLineWidth(0.6);
+    doc.line(margem, y, larguraPagina - margem, y);
+    y += 7;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor.apply(doc, CORES_RELATORIO.texto);
+    doc.text("Tipo: " + rotuloPeriodo, margem, y); y += 6;
+    doc.text("Período: " + rotuloIntervalo, margem, y); y += 6;
+    doc.text("Idoso: " + rotuloIdoso, margem, y); y += 6;
+    doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+    doc.setFontSize(9);
+    doc.text("Gerado em " + new Date().toLocaleString("pt-BR"), margem, y);
+    y += 8;
+
+    function desenharCabecalhoTabela() {
+        const colHorario = margem;
+        const colAtividade = margem + 22;
+        const colObservacao = margem + 70;
+
+        doc.setFillColor.apply(doc, CORES_RELATORIO.primaria);
+        doc.rect(margem, y, larguraUtil, 8, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("Horário", colHorario + 2, y + 5.5);
+        doc.text("Atividade", colAtividade + 2, y + 5.5);
+        doc.text("Observação", colObservacao + 2, y + 5.5);
+        y += 8;
+
+        return { colHorario: colHorario, colAtividade: colAtividade, colObservacao: colObservacao };
+    }
+
+    function desenharTabelaDiaria(itens) {
+        garantirEspaco(16);
+        let colunas = desenharCabecalhoTabela();
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+
+        if (itens.length === 0) {
+            doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+            doc.text("Nenhuma atividade cadastrada.", colunas.colHorario + 2, y + 5.5);
+            y += 9;
+            return;
+        }
+
+        itens.forEach(function (item, indice) {
+            const pulouPagina = garantirEspaco(10);
+            if (pulouPagina) colunas = desenharCabecalhoTabela();
+
+            if (indice % 2 === 1) {
+                doc.setFillColor.apply(doc, CORES_RELATORIO.linhaAlternada);
+                doc.rect(margem, y, larguraUtil, 8, "F");
+            }
+
+            doc.setFillColor.apply(doc, corPorAtividadeRelatorio(item.atividade));
+            doc.rect(colunas.colHorario, y + 1.5, 2, 5, "F");
+
+            doc.setTextColor.apply(doc, CORES_RELATORIO.texto);
+            doc.setFont("helvetica", "bold");
+            doc.text(item.horario, colunas.colHorario + 5, y + 5.5);
+            doc.setFont("helvetica", "normal");
+            doc.text(item.atividade, colunas.colAtividade + 2, y + 5.5);
+            doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+            const larguraObs = larguraUtil - (colunas.colObservacao - margem) - 4;
+            const linhasObs = doc.splitTextToSize(item.observacao || "—", larguraObs);
+            doc.text(linhasObs, colunas.colObservacao + 2, y + 5.5);
+
+            y += 8;
+        });
+
+        y += 4;
+    }
+
+    function desenharListaPorData(idoso) {
+        const yInicio = y;
+
+        datas.forEach(function (dataObj) {
+            const itens = obterAtividadesParaData(dataObj, idoso);
+            if (itens.length === 0) return;
+
+            garantirEspaco(12);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.setTextColor.apply(doc, CORES_RELATORIO.rotina);
+            const rotuloDia = NOMES_DIAS_COMPLETOS[MAPA_DIA_SEMANA[dataObj.getDay()]] + " — " + formatarData(paraISO(dataObj)).slice(0, 5);
+            doc.text(rotuloDia.toUpperCase(), margem, y);
+            y += 6;
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            itens.forEach(function (item) {
+                garantirEspaco(7);
+                doc.setFillColor.apply(doc, corPorAtividadeRelatorio(item.atividade));
+                doc.rect(margem + 2, y - 3, 2, 4, "F");
+                doc.setTextColor.apply(doc, CORES_RELATORIO.texto);
+                const linha = item.horario + " — " + item.atividade + (item.observacao ? " — " + item.observacao : "");
+                const linhasQuebradas = doc.splitTextToSize(linha, larguraUtil - 10);
+                doc.text(linhasQuebradas, margem + 7, y);
+                y += 5 * linhasQuebradas.length + 1;
+            });
+            y += 3;
+        });
+
+        return y > yInicio;
+    }
+
+    if (idososRelatorio.length === 0) {
+        doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+        doc.text("Nenhum idoso encontrado para gerar o relatório.", margem, y);
+    } else if (idosoIdOuTodos === "todos") {
+        idososRelatorio.forEach(function (idoso, indiceIdoso) {
+            garantirEspaco(14);
+            if (indiceIdoso > 0) y += 4;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(13);
+            doc.setTextColor.apply(doc, CORES_RELATORIO.primaria);
+            doc.text(idoso.nome.toUpperCase(), margem, y);
+            y += 3;
+            doc.setDrawColor.apply(doc, CORES_RELATORIO.borda);
+            doc.setLineWidth(0.3);
+            doc.line(margem, y, larguraPagina - margem, y);
+            y += 6;
+
+            if (periodo === "diario") {
+                desenharTabelaDiaria(obterAtividadesParaData(datas[0], idoso));
+            } else {
+                const teveAtividade = desenharListaPorData(idoso);
+                if (!teveAtividade) {
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(10);
+                    doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+                    doc.text("Nenhuma atividade cadastrada neste período.", margem, y);
+                    y += 8;
+                }
+            }
+        });
+    } else {
+        const idoso = idososRelatorio[0];
+        if (periodo === "diario") {
+            desenharTabelaDiaria(obterAtividadesParaData(datas[0], idoso));
+        } else {
+            const teveAtividade = desenharListaPorData(idoso);
+            if (!teveAtividade) {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+                doc.text("Nenhuma atividade cadastrada neste período.", margem, y);
+            }
+        }
+    }
+
+    const totalPaginas = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPaginas; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor.apply(doc, CORES_RELATORIO.textoSuave);
+        doc.text("Cuidar+ — Relatório de Rotina", margem, alturaPagina - 8);
+        doc.text("Página " + p + " de " + totalPaginas, larguraPagina - margem, alturaPagina - 8, { align: "right" });
+    }
+
+    const nomeIdosoArquivo = idosoIdOuTodos === "todos" ? "Todos" : sanitizarNomeArquivo(rotuloIdoso);
+    const nomeArquivo = "Cuidar+_Relatorio_Rotina_" + nomeIdosoArquivo + "_" + paraDataArquivo(new Date()) + ".pdf";
+    doc.save(nomeArquivo);
+}
+
+function fecharSobre() {
+    document.getElementById("modalSobre").classList.add("escondida");
+    document.getElementById("overlaySobre").classList.add("escondida");
 }
 
 function iconeSvg(nome) {
@@ -330,7 +735,6 @@ function renderizarInfoExtraIdoso(idoso) {
     const pessoais = [];
     if (idoso.dataNascimento) pessoais.push(linhaInfo("Nascimento", escaparHtml(formatarData(idoso.dataNascimento))));
     if (idoso.genero) pessoais.push(linhaInfo("Gênero", escaparHtml(idoso.genero)));
-    if (idoso.cpf) pessoais.push(linhaInfo("CPF", escaparHtml(idoso.cpf)));
     if (idoso.criadoEm) pessoais.push(linhaInfo("Cadastrado em", escaparHtml(new Date(idoso.criadoEm).toLocaleDateString("pt-BR"))));
     if (pessoais.length) blocos.push(cartaoInfo("Dados pessoais", pessoais.join("")));
 
@@ -341,13 +745,11 @@ function renderizarInfoExtraIdoso(idoso) {
     if (idoso.mobilidade) medicas.push(linhaInfo("Mobilidade", escaparHtml(idoso.mobilidade)));
     if ((idoso.doencasCronicas || []).length) medicas.push(linhaInfo("Doenças crônicas", idoso.doencasCronicas.map(escaparHtml).join(", ")));
     if ((idoso.diagnosticos || []).length) medicas.push(linhaInfo("Diagnósticos", idoso.diagnosticos.map(escaparHtml).join(", ")));
-    if ((idoso.alergias || []).length) medicas.push(linhaInfo("Alergias", idoso.alergias.map(escaparHtml).join(", ")));
     if (medicas.length) blocos.push(cartaoInfo("Informações médicas", medicas.join("")));
 
     const prefs = [];
     if (idoso.comidaFavorita) prefs.push(linhaInfo("Comida favorita", escaparHtml(idoso.comidaFavorita)));
     if (idoso.musicaFavorita) prefs.push(linhaInfo("Música favorita", escaparHtml(idoso.musicaFavorita)));
-    if (idoso.religiao) prefs.push(linhaInfo("Religião", escaparHtml(idoso.religiao)));
     if (idoso.hobbies) prefs.push(linhaInfo("Hobbies", escaparHtml(idoso.hobbies)));
     if (prefs.length) blocos.push(cartaoInfo("Preferências e hábitos", prefs.join("")));
 
@@ -410,6 +812,18 @@ function salvarCuidador(event) {
 
     atualizarSaudacao();
     abrirPerfilCuidador();
+}
+
+function apagarTodosDados() {
+    const aviso = idosos.length
+        ? "Isso vai apagar seu perfil de cuidador(a) e TODOS os " + idosos.length + " idoso(s) cadastrado(s), com remédios, consultas, rotina e alimentação de cada um. Essa ação não pode ser desfeita."
+        : "Isso vai apagar seu perfil de cuidador(a) e todos os dados salvos neste dispositivo. Essa ação não pode ser desfeita.";
+
+    if (!confirm(aviso)) return;
+    if (!confirm("Tem certeza absoluta? Todos os dados serão perdidos para sempre.")) return;
+
+    localStorage.clear();
+    location.reload();
 }
 
 
@@ -476,7 +890,6 @@ function abrirFormularioIdoso(id) {
     document.getElementById("nomeIdoso").value = idoso ? idoso.nome : "";
     document.getElementById("dataNascimentoIdoso").value = (idoso && idoso.dataNascimento) || "";
     document.getElementById("generoIdoso").value = (idoso && idoso.genero) || "";
-    document.getElementById("cpfIdoso").value = (idoso && idoso.cpf) || "";
     document.getElementById("telefoneIdoso").value = (idoso && idoso.telefone) || "";
     document.getElementById("enderecoIdoso").value = (idoso && idoso.endereco) || "";
     document.getElementById("numeroIdoso").value = (idoso && idoso.numero) || "";
@@ -490,7 +903,6 @@ function abrirFormularioIdoso(id) {
     definirChips("alergiasIdoso", "listaAlergias", (idoso && idoso.alergias) || []);
     document.getElementById("comidaFavoritaIdoso").value = (idoso && idoso.comidaFavorita) || "";
     document.getElementById("musicaFavoritaIdoso").value = (idoso && idoso.musicaFavorita) || "";
-    document.getElementById("religiaoIdoso").value = (idoso && idoso.religiao) || "";
     document.getElementById("hobbiesIdoso").value = (idoso && idoso.hobbies) || "";
     document.getElementById("emergenciaNomeIdoso").value = (idoso && idoso.emergenciaNome) || "";
     document.getElementById("emergenciaTelefoneIdoso").value = (idoso && idoso.emergenciaTelefone) || "";
@@ -519,7 +931,6 @@ function salvarIdoso(event) {
         dataNascimento: dataNascimento,
         idade: String(calcularIdade(dataNascimento)),
         genero: document.getElementById("generoIdoso").value,
-        cpf: document.getElementById("cpfIdoso").value,
         telefone: document.getElementById("telefoneIdoso").value,
         endereco: document.getElementById("enderecoIdoso").value,
         numero: document.getElementById("numeroIdoso").value,
@@ -533,7 +944,6 @@ function salvarIdoso(event) {
         alergias: JSON.parse(document.getElementById("alergiasIdoso").value || "[]"),
         comidaFavorita: document.getElementById("comidaFavoritaIdoso").value,
         musicaFavorita: document.getElementById("musicaFavoritaIdoso").value,
-        religiao: document.getElementById("religiaoIdoso").value,
         hobbies: document.getElementById("hobbiesIdoso").value,
         emergenciaNome: document.getElementById("emergenciaNomeIdoso").value,
         emergenciaTelefone: document.getElementById("emergenciaTelefoneIdoso").value,
@@ -584,6 +994,11 @@ function atualizarPerfilIdoso() {
     let textoIdade = idoso.idade ? idoso.idade + " anos" : "Idade não informada";
     if (idoso.dataNascimento) textoIdade += " (" + formatarData(idoso.dataNascimento) + ")";
     document.getElementById("perfilIdosoIdade").textContent = textoIdade;
+
+    const alergiaEl = document.getElementById("alergiaIdoso");
+    const temAlergia = (idoso.alergias || []).length > 0;
+    alergiaEl.textContent = temAlergia ? "Alergias: " + idoso.alergias.join(", ") : "";
+    alergiaEl.classList.toggle("escondida", !temAlergia);
 
     const notaEl = document.getElementById("perfilIdosoNota");
     notaEl.textContent = idoso.nota || "";
@@ -1258,7 +1673,7 @@ function obterAtividadesHoje() {
                 horariosDoMedicamento(m).forEach(function (h) {
                     atividades.push({
                         horario: escaparHtml(h), icone: iconeSvg('comprimido'), idosoNome: escaparHtml(idoso.nome),
-                        idosoCor: idosoCor, idosoIniciais: idosoIniciais,
+                        idosoId: idoso.id, idosoCor: idosoCor, idosoIniciais: idosoIniciais,
                         texto: escaparHtml(m.nome + " " + m.dosagem), chave: "med-" + idoso.id + "-" + m.id + "-" + h
                     });
                 });
@@ -1268,7 +1683,7 @@ function obterAtividadesHoje() {
             if (a.dias.includes(diaHoje)) {
                 atividades.push({
                     horario: escaparHtml(a.horario), icone: iconeSvg('prato'), idosoNome: escaparHtml(idoso.nome),
-                    idosoCor: idosoCor, idosoIniciais: idosoIniciais,
+                    idosoId: idoso.id, idosoCor: idosoCor, idosoIniciais: idosoIniciais,
                     texto: escaparHtml(a.tipo), chave: "ali-" + idoso.id + "-" + a.id
                 });
             }
@@ -1277,7 +1692,7 @@ function obterAtividadesHoje() {
             if (r.dias.includes(diaHoje)) {
                 atividades.push({
                     horario: escaparHtml(r.inicio), icone: iconeSvg('relogio'), idosoNome: escaparHtml(idoso.nome),
-                    idosoCor: idosoCor, idosoIniciais: idosoIniciais,
+                    idosoId: idoso.id, idosoCor: idosoCor, idosoIniciais: idosoIniciais,
                     texto: "Início do período de cuidado", chave: "rot-" + idoso.id + "-" + r.id
                 });
             }
@@ -1286,7 +1701,7 @@ function obterAtividadesHoje() {
             if (c.tipo === "recorrente" && c.dias.includes(diaHoje)) {
                 atividades.push({
                     horario: escaparHtml(c.horario), icone: iconeSvg('calendario'), idosoNome: escaparHtml(idoso.nome),
-                    idosoCor: idosoCor, idosoIniciais: idosoIniciais,
+                    idosoId: idoso.id, idosoCor: idosoCor, idosoIniciais: idosoIniciais,
                     texto: escaparHtml((c.especialidade || "Consulta") + (c.profissional ? " — " + c.profissional : "")),
                     chave: "con-" + idoso.id + "-" + c.id
                 });
@@ -1298,26 +1713,101 @@ function obterAtividadesHoje() {
     return atividades;
 }
 
+function obterInicioPeriodosHoje() {
+    const diaHoje = diaAtualAbrev();
+    const itens = [];
+
+    idosos.forEach(function (idoso) {
+        const periodosHoje = (idoso.rotina || []).filter(function (r) { return r.dias.includes(diaHoje); });
+        if (periodosHoje.length === 0) return;
+
+        const proximo = periodosHoje.slice().sort(function (a, b) { return a.inicio.localeCompare(b.inicio); })[0];
+        itens.push({
+            idosoId: idoso.id,
+            idosoNome: escaparHtml(idoso.nome),
+            idosoCor: corAvatar(idoso.id),
+            idosoIniciais: escaparHtml(iniciais(idoso.nome)),
+            horario: escaparHtml(proximo.inicio),
+            chave: "rot-" + idoso.id + "-" + proximo.id
+        });
+    });
+
+    itens.sort(function (a, b) { return a.horario.localeCompare(b.horario); });
+    return itens;
+}
+
 function renderizarRotinaHoje() {
     const lista = document.getElementById("listaRotinaHoje");
-    const atividades = obterAtividadesHoje();
+    const atividadesTotais = obterAtividadesHoje();
+    const itens = obterInicioPeriodosHoje();
+
+    if (itens.length === 0) {
+        lista.innerHTML = "<p class='vazio'>Nenhum idoso com período de cuidado hoje. Cadastre a rotina de cada um.</p>";
+        atualizarResumoDashboard(atividadesTotais);
+        return;
+    }
+
+    const concluidos = carregarConcluidosHoje();
+    const ocultarConcluidas = document.getElementById("ocultarConcluidas").checked;
+
+    const visiveis = ocultarConcluidas
+        ? itens.filter(function (item) { return !concluidos.includes(item.chave); })
+        : itens;
+
+    lista.innerHTML = "";
+
+    if (visiveis.length === 0) {
+        lista.innerHTML = "<p class='vazio'>Tudo concluído por aqui! 🎉</p>";
+        atualizarResumoDashboard(atividadesTotais);
+        return;
+    }
+
+    visiveis.forEach(function (item) {
+        const marcado = concluidos.includes(item.chave);
+
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.classList.add("cartao-inicio-periodo");
+        if (marcado) botao.classList.add("atividade-concluida");
+        botao.onclick = function () { abrirAgendaIdoso(item.idosoId); };
+
+        botao.innerHTML =
+            "<span class='atividade-avatar' aria-hidden='true' style='background:" + item.idosoCor + "'>" + item.idosoIniciais + "</span>" +
+            "<span class='atividade-horario'>" + item.horario + "</span>" +
+            "<span class='atividade-corpo'><strong>" + item.idosoNome + "</strong>" +
+            "<span class='rotina-legenda'>" + iconeSvg('relogio') + " Início do período de cuidado</span></span>";
+
+        lista.appendChild(botao);
+    });
+
+    atualizarResumoDashboard(atividadesTotais);
+}
+
+function abrirAgendaIdoso(id) {
+    idosoAtualId = id;
+    const idoso = encontrarIdoso(id);
+    document.getElementById("agendaIdosoTitulo").textContent = "Rotina completa de " + idoso.nome;
+    renderizarAgendaIdoso();
+    mostrarTela("agendaIdoso");
+}
+
+function renderizarAgendaIdoso() {
+    const idoso = encontrarIdoso(idosoAtualId);
+    const lista = document.getElementById("listaAgendaIdoso");
+    if (!idoso) return;
+
+    const atividades = obterAtividadesHoje().filter(function (item) { return item.idosoId === idoso.id; });
 
     if (atividades.length === 0) {
-        lista.innerHTML = "<p class='vazio'>Nenhuma atividade para hoje. Cadastre idosos e a rotina de cada um.</p>";
-        atualizarResumoDashboard(atividades);
+        lista.innerHTML = "<p class='vazio'>Nenhuma atividade cadastrada para hoje.</p>";
         return;
     }
 
     const concluidos = carregarConcluidosHoje();
     const agora = new Date();
     const horaAtual = String(agora.getHours()).padStart(2, "0") + ":" + String(agora.getMinutes()).padStart(2, "0");
-    const ocultarConcluidas = document.getElementById("ocultarConcluidas").checked;
 
-    const visiveis = ocultarConcluidas
-        ? atividades.filter(function (item) { return !concluidos.includes(item.chave); })
-        : atividades;
-
-    const ordenadas = visiveis.slice().sort(function (a, b) {
+    const ordenadas = atividades.slice().sort(function (a, b) {
         const atrasadoA = !concluidos.includes(a.chave) && a.horario < horaAtual;
         const atrasadoB = !concluidos.includes(b.chave) && b.horario < horaAtual;
         if (atrasadoA !== atrasadoB) return atrasadoA ? -1 : 1;
@@ -1325,12 +1815,6 @@ function renderizarRotinaHoje() {
     });
 
     lista.innerHTML = "";
-
-    if (ordenadas.length === 0) {
-        lista.innerHTML = "<p class='vazio'>Tudo concluído por aqui! 🎉</p>";
-        atualizarResumoDashboard(atividades);
-        return;
-    }
 
     ordenadas.forEach(function (item) {
         const marcado = concluidos.includes(item.chave);
@@ -1343,14 +1827,11 @@ function renderizarRotinaHoje() {
 
         linha.innerHTML =
             "<input type='checkbox' " + (marcado ? "checked" : "") + " onchange=\"alternarConcluido('" + item.chave + "')\">" +
-            "<span class='atividade-avatar' aria-hidden='true' style='background:" + item.idosoCor + "'>" + item.idosoIniciais + "</span>" +
             "<span class='atividade-horario'>" + item.horario + "</span>" +
-            "<span class='atividade-corpo'>" + item.icone + " <strong>" + item.idosoNome + "</strong> — " + item.texto + "</span>";
+            "<span class='atividade-corpo'>" + item.icone + " " + item.texto + "</span>";
 
         lista.appendChild(linha);
     });
-
-    atualizarResumoDashboard(atividades);
 }
 
 function atualizarResumoDashboard(atividades) {
@@ -1381,6 +1862,8 @@ function alternarConcluido(chave) {
     }
     salvarConcluidosHoje(concluidos);
     renderizarRotinaHoje();
+    renderizarIdosos();
+    renderizarAgendaIdoso();
 }
 
 function atualizarSaudacao() {
