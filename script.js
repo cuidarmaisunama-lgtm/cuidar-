@@ -465,6 +465,11 @@ function corPorAtividadeRelatorio(atividade) {
 }
 
 function gerarRelatorioPDF(periodo, idosoIdOuTodos) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("Não foi possível carregar o gerador de PDF (lib/jspdf.umd.min.js). Recarregue a página e tente novamente; se o problema continuar, verifique se esse arquivo está publicado junto com o restante do site.");
+        return;
+    }
+
     const jsPDFClasse = window.jspdf.jsPDF;
     const doc = new jsPDFClasse({ unit: "mm", format: "a4" });
 
